@@ -6,30 +6,30 @@ import wmi
 import psutil
 import requests
 import logging
-from typing import List, Dict, Optional, Tuple  # Исправленный импорт
+from typing import List, Dict, Optional, Tuple
 from colorama import init, Fore, Back, Style
 from datetime import datetime
 
-# Инициализация colorama для цветного вывода
+
 init()
 
-# Настройка логгера для файла
+
 file_logger = logging.getLogger('file_logger')
 file_logger.setLevel(logging.INFO)
 file_handler = logging.FileHandler("logip.log", mode='a', encoding='utf-8')
 file_handler.setFormatter(logging.Formatter('%(asctime)s - %(message)s'))
 file_logger.addHandler(file_handler)
 
-# Настройка логгера для консоли
+
 console_logger = logging.getLogger('console_logger')
 console_logger.setLevel(logging.INFO)
 console_handler = logging.StreamHandler()
 console_logger.addHandler(console_handler)
 
-# Пропускаемые порты
+
 IGNORED_PORTS = {80, 443, 53, 21, 22, 25, 110, 143, 993, 995, 3306, 3389}
 
-# Регулярное выражение для локальных IP
+
 LOCAL_IP = re.compile(
     r'^('
     r'127\.0\.0\.1|'
@@ -51,7 +51,6 @@ LOCAL_IP = re.compile(
 )
 
 def show_banner():
-    """Отображает цветной баннер программы"""
     banner = f"""
 {Fore.RED}
 /$$$$$$                        /$$   /$$ /$$ /$$ /$$
@@ -76,18 +75,15 @@ def show_banner():
     print(banner)
 
 def is_ip_in_logs(ip: str) -> bool:
-    """Проверяет, есть ли IP в логах"""
     if not os.path.exists("logip.log"):
         return False
     with open("logip.log", "r", encoding='utf-8') as log_file:
         return any(f"IP: {ip}" in line for line in log_file)
 
 def is_local_ip(ip: str) -> bool:
-    """Проверяет, является ли IP локальным"""
     return bool(LOCAL_IP.match(ip))
 
 def get_ips() -> List[Dict[str, str]]:
-    """Получает список внешних подключений"""
     wmi_obj = wmi.WMI()
     connections = []
 
@@ -105,8 +101,6 @@ def get_ips() -> List[Dict[str, str]]:
     return connections
 
 def get_anydesk_trace_info() -> Tuple[str, List[str]]:
-    """Получает информацию из файла connection_trace.txt AnyDesk"""
-    # Пробуем найти файл в нескольких местах
     possible_paths = [
         os.path.join(os.getenv('APPDATA'), 'AnyDesk', 'connection_trace.txt'),
         os.path.join(os.getenv('ProgramData'), 'AnyDesk', 'connection_trace.txt'),
@@ -126,12 +120,11 @@ def get_anydesk_trace_info() -> Tuple[str, List[str]]:
     try:
         with open(trace_file_path, 'r', encoding='utf-8') as f:
             lines = [line.strip() for line in f.readlines() if line.strip()]
-            return trace_file_path, lines[-3:]  # Возвращаем последние 3 строки
+            return trace_file_path, lines[-3:] 
     except Exception as e:
         return f"Ошибка чтения файла: {str(e)}", []
 
 def get_ip_info(ip_data: Dict[str, str]) -> Dict[str, str]:
-    """Получает информацию об IP"""
     ip = ip_data['IP']
     try:
         response = requests.get(f'http://ip-api.com/json/{ip}', timeout=5)
@@ -155,16 +148,13 @@ def get_ip_info(ip_data: Dict[str, str]) -> Dict[str, str]:
                 "AS": "Неизвестно"}
 
 def save_connection_info(info: Dict[str, str], trace_info: Tuple[str, List[str]]) -> None:
-    """Сохраняет информацию о подключении в лог"""
     file_logger.info("="*40)
     file_logger.info("Обнаружено подключение!")
     file_logger.info("="*40)
     
-    # Сохраняем информацию об IP
     for key, value in info.items():
         file_logger.info(f'{key:<10}: {value}')
-    
-    # Сохраняем информацию из лога AnyDesk
+
     file_logger.info("\nИнформация:")
     for line in trace_info[1]:
         file_logger.info(line)
@@ -186,13 +176,13 @@ def main():
                     if not is_ip_in_logs(conn['IP']):
                         console_logger.info(f"{Fore.RED}Новое подключение к: {conn['IP']}:{conn['Port']}{Style.RESET_ALL}")
                         
-                        # Получаем информацию об IP
+
                         ip_info = get_ip_info(conn)
                         
-                        # Получаем информацию из лога AnyDesk
+
                         trace_info = get_anydesk_trace_info()
                         
-                        # Выводим информацию в консоль
+
                         console_logger.info(f"{Fore.GREEN}Информация об IP:{Style.RESET_ALL}")
                         for key, value in ip_info.items():
                             console_logger.info(f"{Fore.CYAN}{key:<10}: {value}{Style.RESET_ALL}")
@@ -201,7 +191,7 @@ def main():
                         for line in trace_info[1]:
                             console_logger.info(f"{Fore.WHITE}{line}{Style.RESET_ALL}")
                         
-                        # Сохраняем в лог-файл
+
                         save_connection_info(ip_info, trace_info)
                         console_logger.info(f"{Fore.GREEN}Данные сохранены в лог-файл{Style.RESET_ALL}")
             else:
